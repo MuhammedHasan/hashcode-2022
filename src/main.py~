@@ -1,0 +1,20 @@
+from collections import namedtuple
+
+
+def read():
+    pass
+
+
+def write():
+    pass
+
+
+def main():
+    files = ['a.txt', 'b.txt', 'c.txt', 'd.txt', 'e.txt']
+
+    for i in files:
+        read('../')
+
+
+if __name__ == "__main__":
+    main()
