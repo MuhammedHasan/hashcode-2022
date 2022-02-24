@@ -13,17 +13,24 @@ class Contributor:
         self.skills[name] = level
 
     def level_up(self, role):
-        # if mentoring, then can be small by one
-        if self.skills[role.skill] == role.level:
+        if self.skills[role.skill] <= role.level:
             self.skills[role.skill] += 1
 
-    def valid_role(self, project, role):
+    def valid_role(self, project, role, members):
         if role.skill not in self.skills:
             return False
 
         if self.skills[role.skill] >= role.level:
             if project.start_day >= self.busy_until:
                 return True
+
+        for _, mentor in members.items():
+            if mentor.name != self.name:
+                if role.skill in mentor.skills:
+                    if mentor.skills[role.skill] >= role.level:
+                        if self.skills[role.skill] >= role.level - 1:
+                            if project.start_day >= self.busy_until:
+                                return True
 
         return False
 
@@ -53,20 +60,26 @@ class Project:
         return self.best_before - self.num_days
 
     def fill_roles(self, skill_contributor):
-        members = list()
+        members = dict()  # key role_id value cont
 
         assigned_member = set()
 
-        for role in self.roles:
+        for role_id, role in sorted(enumerate(self.roles), key=lambda x: -x[1][1]):
             conts = skill_contributor[role.skill]
 
+            conts = sorted([
+                (level, cont)
+                for level, cont in conts
+                if level >= role.level
+            ], key=lambda x: x[0])
+
             match = False
-            for _level, cont in conts:
+            for _, cont in conts:
                 if cont.name in assigned_member:
                     continue
 
-                if cont.valid_role(self, role):
-                    members.append((cont, role))
+                if cont.valid_role(self, role, members):
+                    members[role_id] = cont
                     assigned_member.add(cont.name)
                     match = True
                     break
@@ -74,7 +87,10 @@ class Project:
             if not match:
                 return []  # no member
 
-        return members
+        return [
+            (members[role_id], role)
+            for role_id, role in enumerate(self.roles)
+        ]
 
     def __str__(self):
         return f'Project({self.name})'
@@ -136,7 +152,7 @@ def solve(contributors, projects):
     skill_contributor = dict(skill_contributor)
 
     for skill, conts in skill_contributor.items():
-        skill_contributor[skill] = sorted(conts, key=lambda x: x[0])
+        skill_contributor[skill] = sorted(conts, key=lambda x: -x[0])
 
     projects = sorted(projects, key=lambda p: (
         p.start_day, -(p.score / p.num_days)))
@@ -149,7 +165,7 @@ def solve(contributors, projects):
         conts_roles = project.fill_roles(skill_contributor)
 
         if len(conts_roles) == 0:
-            # unassigned_projects.append(project)
+            unassigned_projects.append(project)
             next
 
         for cont, role in conts_roles:
@@ -157,15 +173,15 @@ def solve(contributors, projects):
 
         output[project.name] = [cont for cont, _ in conts_roles]
 
-        # for un_project in unassigned_projects:
-        #     conts_roles = un_project.fill_roles(skill_contributor)
+        for un_project in unassigned_projects:
+            conts_roles = un_project.fill_roles(skill_contributor)
 
-        #     if len(conts) == 0:
-        #         next
+            if len(conts_roles) == 0:
+                next
 
-        #     for cont, role in conts_roles:
-        #         cont.assign(project, role)
-        #     output[project.name] = [cont for cont, _ in conts_roles]
+            for cont, role in conts_roles:
+                cont.assign(un_project, role)
+            output[un_project.name] = [cont for cont, _ in conts_roles]
 
     return output
 
