@@ -24,7 +24,7 @@ class Contributor:
 
         if mentor is not None:
             if mentor.name == self.name:
-                raise ValueError('One cannot mentor your self!')
+                raise ValueError('One cannot mentor itself!')
 
             if mentor.valid_role(role):
                 if level >= role.level - 1:
@@ -107,17 +107,22 @@ class HumanResources:
 
             match = False
 
+            mentor = None
+
+            for mentor_candidate in members.values():
+                if mentor_candidate.valid_role(role):
+                    mentor = mentor_candidate
+
             for _, candidate in candidates:
                 if candidate.name in assigned_member:
                     continue
 
-                if candidate.valid_role(role) \
-                   and candidate.valid_time(start_day):
-
-                    members[role_id] = candidate
-                    assigned_member.add(candidate.name)
-                    match = True
-                    break
+                if candidate.valid_time(start_day):
+                    if candidate.valid_role(role, mentor):
+                        members[role_id] = candidate
+                        assigned_member.add(candidate.name)
+                        match = True
+                        break
 
             if not match:
                 return []  # no member
@@ -194,7 +199,7 @@ def solve_naive(contributors, projects):
     return output
 
 
-def batch(projects, batch_size=10):
+def batch(projects, batch_size=15):
     for i in range(len(projects)-batch_size+1):
         for _ in range(5):  # try same batch 5 time
             yield projects[i: i+batch_size]
